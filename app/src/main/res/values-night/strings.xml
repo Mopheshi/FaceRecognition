@@ -1,5 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Face Recognition</string>
     <string name="face_recognition">Face Recognition</string>
     <string name="result">Result</string>
     <string name="original">Original</string>
