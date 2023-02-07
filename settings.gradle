@@ -3,6 +3,9 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+
+        // jcenter() for outdated dependencies
+        jcenter()
     }
 }
 dependencyResolutionManagement {
@@ -10,6 +13,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+
+        // jcenter() for outdated dependencies
+        jcenter()
     }
 }
 rootProject.name = "Face Recognition"
