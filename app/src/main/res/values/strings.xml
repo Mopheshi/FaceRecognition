@@ -1,10 +1,12 @@
 <resources>
     <string name="app_name">Face Recognition</string>
     <string name="face_recognition">Face Recognition</string>
-    <string name="result">Result: </string>
+    <string name="result"></string>
     <string name="original">Original</string>
     <string name="test">Test</string>
     <string name="morpheus_softwares">Morpheus Softwares</string>
     <string name="verify">Verify</string>
     <string name="todo">TODO</string>
+    <string name="samefaces">Same faces!</string>
+    <string name="diffaces">Different faces!</string>
 </resources>
