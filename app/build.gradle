@@ -38,6 +38,8 @@ dependencies {
     implementation('org.tensorflow:tensorflow-lite:0.0.0-nightly') { changing = true }
     implementation('org.tensorflow:tensorflow-lite-gpu:0.0.0-nightly') { changing = true }
     implementation('org.tensorflow:tensorflow-lite-support:0.0.0-nightly') { changing = true }
+    implementation 'com.google.mlkit:vision-common:17.3.0'
+    implementation 'com.google.android.gms:play-services-mlkit-face-detection:17.0.1'
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

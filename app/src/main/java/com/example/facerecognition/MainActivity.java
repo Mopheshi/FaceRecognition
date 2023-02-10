@@ -4,15 +4,24 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.face.Face;
+import com.google.mlkit.vision.face.FaceDetection;
+import com.google.mlkit.vision.face.FaceDetector;
+
+import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.support.common.TensorOperator;
 import org.tensorflow.lite.support.common.ops.NormalizeOp;
@@ -31,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
     private static final float IMAGE_STD = 1.0f;
 
     public static Bitmap cropped;
-    public Bitmap originalBitmap, textBitmap;
+    public Bitmap originalBitmap, testBitmap;
 
     protected Interpreter tflite;
 
@@ -52,10 +61,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        initComponents();
-    }
-
-    private void initComponents() {
         result = findViewById(R.id.result);
         originalImage = findViewById(R.id.originalImage);
         testImage = findViewById(R.id.testImage);
@@ -103,9 +108,9 @@ public class MainActivity extends AppCompatActivity {
         return channel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
     }
 
-    private TensorImage loadFile(final Bitmap bitmap, TensorImage inputImageBuffer) {
-        inputImageBuffer.load(bitmap);
-        int cropSize = Math.min(bitmap.getWidth(), bitmap.getHeight());
+    private TensorImage loadFile(final Bitmap BTIMAP, TensorImage inputImageBuffer) {
+        inputImageBuffer.load(BTIMAP);
+        int cropSize = Math.min(BTIMAP.getWidth(), BTIMAP.getHeight());
 
         ImageProcessor processor = new ImageProcessor.Builder().add(new ResizeWithCropOrPadOp(cropSize, cropSize))
                 .add(new ResizeOp(imageSizeX, imageSizeY, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR))
@@ -120,5 +125,61 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == 12 && resultCode == RESULT_OK && data != null) {
+            imageUri = data.getData();
+
+            try {
+                originalBitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
+                originalImage.setImageBitmap(originalBitmap);
+                detectFace(originalBitmap, "Original Image");
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
+        }
+
+        if (requestCode == 13 && resultCode == RESULT_OK && data != null) {
+            imageUri = data.getData();
+
+            try {
+                testBitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
+                testImage.setImageBitmap(testBitmap);
+                detectFace(testBitmap, "Test Image");
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
+        }
+    }
+
+    private void detectFace(final Bitmap BITMAP, final String IMAGE_TYPE) {
+        final InputImage INPUTIMAGE = InputImage.fromBitmap(BITMAP, 0);
+        FaceDetector faceDetector = FaceDetection.getClient();
+        faceDetector.process(INPUTIMAGE).addOnSuccessListener(faces -> {
+            for (Face face : faces) {
+                Rect bounds = face.getBoundingBox();
+                cropped = Bitmap.createBitmap(BITMAP, bounds.left, bounds.top, bounds.width(), bounds.height());
+                getEmbeddings(cropped, IMAGE_TYPE);
+            }
+        }).addOnFailureListener(e -> Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show());
+    }
+
+    private void getEmbeddings(Bitmap bitmap, String imageType) {
+        TensorImage inputImageBuffer;
+        float[][] embedding = new float[1][128];
+        int imageTensorIndex = 0;
+        int[] imageShape = tflite.getInputTensor(imageTensorIndex).shape();
+        imageSizeX = imageShape[1];
+        imageSizeY = imageShape[2];
+        DataType imageDataType = tflite.getInputTensor(imageTensorIndex).dataType();
+        inputImageBuffer = new TensorImage(imageDataType);
+        inputImageBuffer = loadFile(bitmap, inputImageBuffer);
+
+        tflite.run(inputImageBuffer.getBuffer(), embedding);
+
+        if (imageType.equals("Original Image")) {
+            originalEmbedding = embedding;
+        } else if (imageType.equals("Test Image")) {
+            testEmbedding = embedding;
+        }
     }
 }
