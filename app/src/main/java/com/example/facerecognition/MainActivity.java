@@ -101,10 +101,17 @@ public class MainActivity extends AppCompatActivity {
 
     private MappedByteBuffer loadModelFile(Context context) throws IOException {
         AssetFileDescriptor descriptor = context.getAssets().openFd("Qfacenet.tflite");
-        FileInputStream fis = new FileInputStream(descriptor.getFileDescriptor());
-        FileChannel channel = fis.getChannel();
+        FileInputStream fis;
+        FileChannel channel = null;
         long startOffset = descriptor.getStartOffset();
         long declaredLength = descriptor.getDeclaredLength();
+        try {
+            fis = new FileInputStream(descriptor.getFileDescriptor());
+            channel = fis.getChannel();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        assert channel != null;
         return channel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
     }
 
