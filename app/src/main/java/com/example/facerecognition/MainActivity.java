@@ -1,6 +1,6 @@
 package com.example.facerecognition;
 
-import android.content.Context;
+import android.app.Activity;
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
     public static Bitmap cropped;
     public Bitmap originalBitmap, testBitmap;
 
-    protected Interpreter tflite;
+    private Interpreter tflite;
 
     Uri imageUri;
 
@@ -99,8 +99,8 @@ public class MainActivity extends AppCompatActivity {
         return Math.sqrt(sum);
     }
 
-    private MappedByteBuffer loadModelFile(Context context) throws IOException {
-        AssetFileDescriptor descriptor = context.getAssets().openFd("Qfacenet.tflite");
+    private MappedByteBuffer loadModelFile(Activity activity) throws IOException {
+        AssetFileDescriptor descriptor = activity.getAssets().openFd("Qfacenet.tflite");
         FileInputStream fis;
         FileChannel channel = null;
         long startOffset = descriptor.getStartOffset();
@@ -109,15 +109,15 @@ public class MainActivity extends AppCompatActivity {
             fis = new FileInputStream(descriptor.getFileDescriptor());
             channel = fis.getChannel();
         } catch (Exception e) {
-            e.printStackTrace();
+            Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show();
         }
         assert channel != null;
         return channel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
     }
 
-    private TensorImage loadFile(final Bitmap BTIMAP, TensorImage inputImageBuffer) {
-        inputImageBuffer.load(BTIMAP);
-        int cropSize = Math.min(BTIMAP.getWidth(), BTIMAP.getHeight());
+    private TensorImage loadFile(final Bitmap BITMAP, TensorImage inputImageBuffer) {
+        inputImageBuffer.load(BITMAP);
+        int cropSize = Math.min(BITMAP.getWidth(), BITMAP.getHeight());
 
         ImageProcessor processor = new ImageProcessor.Builder().add(new ResizeWithCropOrPadOp(cropSize, cropSize))
                 .add(new ResizeOp(imageSizeX, imageSizeY, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR))
