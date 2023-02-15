@@ -106,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private MappedByteBuffer loadModelFile(@NonNull Activity activity) throws IOException {
-        AssetFileDescriptor descriptor = activity.getAssets().openFd("Qfacenet.tflite");
+        AssetFileDescriptor descriptor = activity.getAssets().openFd("facenet.tflite");
 
         long startOffset = descriptor.getStartOffset();
         long declaredLength = descriptor.getDeclaredLength();
