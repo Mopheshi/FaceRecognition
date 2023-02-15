@@ -13,6 +13,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -21,6 +22,7 @@ import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.face.FaceDetection;
 import com.google.mlkit.vision.face.FaceDetector;
 
+import org.jetbrains.annotations.Contract;
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.support.common.TensorOperator;
@@ -55,6 +57,8 @@ public class MainActivity extends AppCompatActivity {
 
     private int imageSizeX;
     private int imageSizeY;
+    private Bitmap bitmap;
+    private TensorImage inputImageBuffer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
             tflite = new Interpreter(loadModelFile(this));
         } catch (Exception e) {
             e.printStackTrace();
+            Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show();
         }
 
         originalImage.setOnClickListener(v -> {
@@ -96,26 +101,46 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < 128; i++) {
             sum = sum + Math.pow(originalEmbedding[0][1] - testEmbedding[0][1], 2.0);
         }
+
         return Math.sqrt(sum);
     }
 
-    private MappedByteBuffer loadModelFile(Activity activity) throws IOException {
+    private MappedByteBuffer loadModelFile(@NonNull Activity activity) throws IOException {
         AssetFileDescriptor descriptor = activity.getAssets().openFd("Qfacenet.tflite");
-        FileInputStream fis;
-        FileChannel channel = null;
+
         long startOffset = descriptor.getStartOffset();
         long declaredLength = descriptor.getDeclaredLength();
-        try {
-            fis = new FileInputStream(descriptor.getFileDescriptor());
+
+        FileChannel channel;
+        try (FileInputStream fis = new FileInputStream(descriptor.getFileDescriptor())) {
             channel = fis.getChannel();
-        } catch (Exception e) {
-            Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show();
         }
-        assert channel != null;
+
         return channel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
     }
 
-    private TensorImage loadFile(final Bitmap BITMAP, TensorImage inputImageBuffer) {
+    private void getEmbeddings(Bitmap bitmap, @NonNull String imageType) {
+        TensorImage inputImageBuffer;
+        float[][] embedding = new float[1][128];
+        int imageTensorIndex = 0;
+        int[] imageShape = tflite.getInputTensor(imageTensorIndex).shape();
+        imageSizeX = imageShape[1];
+        imageSizeY = imageShape[2];
+
+        DataType imageDataType = tflite.getInputTensor(imageTensorIndex).dataType();
+        inputImageBuffer = new TensorImage(imageDataType);
+        inputImageBuffer = loadFile(bitmap, inputImageBuffer);
+
+        tflite.run(inputImageBuffer.getBuffer(), embedding);
+
+        if (imageType.equals("Original Image")) {
+            originalEmbedding = embedding;
+        } else if (imageType.equals("Test Image")) {
+            testEmbedding = embedding;
+        }
+    }
+
+    private TensorImage loadFile(final Bitmap BITMAP, @NonNull TensorImage inputImageBuffer) {
         inputImageBuffer.load(BITMAP);
         int cropSize = Math.min(BITMAP.getWidth(), BITMAP.getHeight());
 
@@ -125,6 +150,8 @@ public class MainActivity extends AppCompatActivity {
         return processor.process(inputImageBuffer);
     }
 
+    @NonNull
+    @Contract(value = " -> new", pure = true)
     private TensorOperator getPreprocessNormalizeOp() {
         return new NormalizeOp(IMAGE_MEAN, IMAGE_STD);
     }
@@ -161,32 +188,14 @@ public class MainActivity extends AppCompatActivity {
     private void detectFace(final Bitmap BITMAP, final String IMAGE_TYPE) {
         final InputImage INPUTIMAGE = InputImage.fromBitmap(BITMAP, 0);
         FaceDetector faceDetector = FaceDetection.getClient();
+
         faceDetector.process(INPUTIMAGE).addOnSuccessListener(faces -> {
+
             for (Face face : faces) {
                 Rect bounds = face.getBoundingBox();
                 cropped = Bitmap.createBitmap(BITMAP, bounds.left, bounds.top, bounds.width(), bounds.height());
                 getEmbeddings(cropped, IMAGE_TYPE);
             }
         }).addOnFailureListener(e -> Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show());
-    }
-
-    private void getEmbeddings(Bitmap bitmap, String imageType) {
-        TensorImage inputImageBuffer;
-        float[][] embedding = new float[1][128];
-        int imageTensorIndex = 0;
-        int[] imageShape = tflite.getInputTensor(imageTensorIndex).shape();
-        imageSizeX = imageShape[1];
-        imageSizeY = imageShape[2];
-        DataType imageDataType = tflite.getInputTensor(imageTensorIndex).dataType();
-        inputImageBuffer = new TensorImage(imageDataType);
-        inputImageBuffer = loadFile(bitmap, inputImageBuffer);
-
-        tflite.run(inputImageBuffer.getBuffer(), embedding);
-
-        if (imageType.equals("Original Image")) {
-            originalEmbedding = embedding;
-        } else if (imageType.equals("Test Image")) {
-            testEmbedding = embedding;
-        }
     }
 }
